@@ -34,7 +34,14 @@ function master(args)
 end
 
 function replay(queue, file, loop, rateLimiter, multiplier, sleepTime,noEthernetHeader)
-	local mempool = memory:createMemPool(4096)
+	local mempool
+	if noEthernetHeader then
+		mempool = memory.createMemPool{n=4096,func=function(buf)
+			buf:getEthernetPacket():fill{}
+		end}
+	else
+		mempool = memory.createMemPool{n=4096}
+	end
 	local bufs = mempool:bufArray()
 	local pcapFile = pcap:newReader(file)
 	local prev = 0
