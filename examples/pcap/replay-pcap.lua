@@ -43,7 +43,11 @@ function replay(queue, files, loop, rateLimiter, multiplier, sleepTime,noEtherne
 		mempool = memory.createMemPool{n=4096}
 	end
 	local bufs = mempool:bufArray()
-	local pcapFile = pcap:newReader(files[1])
+	local pcapFiles = {}
+	for index,value in ipairs(files) do
+		pcapFiles[index] = pcap:newReader(value)
+	end
+	local pcapFile = pcapFiles[1]
 	local position  = 1
 	local prev = 0
 	local linkSpeed = queue.dev:getLinkStatus().speed
@@ -75,14 +79,15 @@ function replay(queue, files, loop, rateLimiter, multiplier, sleepTime,noEtherne
 			end
 		else
 			if position < #files then
-					pcapFile:close()
 					position = position + 1
 					prev = 0
-					pcapFile = pcap:newReader(files[position])
+					pcapFile = pcapFiles[position]
 			else
 				if loop then
-					pcapFile:close()
-					pcapFile = pcap:newReader(files[1])
+					for _,value in ipairs(pcapFiles) do
+						value:reset()
+					end
+					pcapFile = pcapFiles[1]
 					prev = 0
 					position = 1
 				else
