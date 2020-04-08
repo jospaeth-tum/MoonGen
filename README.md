@@ -6,6 +6,10 @@ Skip to [Installation](#installation) and [Usage](#using-moongen) if you just wa
 
 Detailed evaluation: [Paper](http://www.net.in.tum.de/fileadmin/bibtex/publications/papers/MoonGen_IMC2015.pdf) (IMC 2015, [BibTeX entry](http://www.net.in.tum.de/fileadmin/bibtex/publications/papers/MoonGen_IMC2015-BibTeX.txt))
 
+# Additional Features compared to the original version
+* Support for PCAPs replayed without Ethernet header in the PCAP (Only IPv4)
+* Support to replay multiple PCAPs in a row
+
 # MoonGen Packet Generator
 
 MoonGen is a scriptable high-speed packet generator built on [libmoon](https://github.com/libmoon/libmoon).
