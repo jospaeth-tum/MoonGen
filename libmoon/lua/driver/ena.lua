@@ -1,3 +1,0 @@
-local dev = {}
-
-return dev
