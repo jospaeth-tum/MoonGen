@@ -29,6 +29,7 @@ function configure(parser)
 	parser:flag("-l --live", "Do some live processing during packet capture. Lower performance than standard mode.")
 	parser:flag("-f --fast", "Set fast flag to reduce the amount of live processing for higher performance. Only has effect if live flag is also set")
 	parser:flag("-c --capture", "If set, all incoming packets are captured as a whole.")
+	parser:option("-s --snaplen", "Maximum capture length of recorded packets (default size 64 B)."):args(1):convert(tonumber):default(64)
 	parser:flag("-d --debug", "Insted of reading real input, some fake input is generated and written to the output files.")
 	return parser:parse()
 end
@@ -108,14 +109,13 @@ function timestamp(queue, otherdev, bar, pre, args)
 		local writer
 		if pre then
 			-- set the relative starting timestamp to 0
-			writer = pcap:newWriter(args.output .. "-pre.pcap", 0)
+			filename = args.output .. "-pre.pcap"
 		else
-			writer = pcap:newWriter(args.output .. "-post.pcap", 0)
+			filename = args.output .. "-post.pcap"
 		end
 
 		bar:wait()
-		core_capture(queue, bufs, writer, args)
-		writer:close()
+		core_capture_c(queue, bufs, filename, args)
 
 	else
 		local filename
@@ -167,6 +167,10 @@ function core_offline(queue, bufs, filename, args)
 	C.ms_log_pkts(queue.id, queue.qid, bufs.array, bufs.size, args.seq_offset, filename)
 end
 
+function core_capture_c(queue, bufs, filename, args)
+	C.pcap_log_pkts(queue.id, queue.qid, bufs.array, bufs.size, args.time, filename, args.snaplen)
+end
+
 function core_capture(queue, bufs, writer, args)
 	local runtime = timer:new(args.time + 0.5)
 
@@ -179,7 +183,10 @@ function core_capture(queue, bufs, writer, args)
 			if timestamp then
 				-- convert to seconds
 				timestamp = timestamp / 1e9
-				writer:writeBuf(timestamp, bufs[i])
+				-- remove timstamp from packet data
+				sz = bufs[i]:getSize() - 8
+				bufs[i]:setSize(sz)
+				writer:writeBuf(timestamp, bufs[i], args.snaplen)
 			end
 		end
 		bufs:free(rx)
