@@ -5,7 +5,6 @@ local ts     = require "timestamping"
 local stats  = require "stats"
 local hist   = require "histogram"
 
-local PKT_SIZE	= 60
 local ETH_DST	= "11:12:13:14:15:16"
 
 local function getRstFile(...)
@@ -24,25 +23,36 @@ function configure(parser)
 	parser:argument("dev1", "Device to transmit/receive from."):convert(tonumber)
 	parser:argument("dev2", "Device to transmit/receive from."):convert(tonumber)
 	parser:option("-r --rate", "Transmit rate in Mbit/s."):default(10000):convert(tonumber)
+	parser:option("-p --pktrate", "Transmit rate in pps."):default(0):convert(tonumber)
+	parser:option("-s --pktsize", "Packetsize in bytes (incl. crc)."):default(64):convert(tonumber)
 	parser:option("-f --file", "Filename of the latency histogram."):default("histogram.csv")
 end
 
 function master(args)
-	local dev1 = device.config({port = args.dev1, rxQueues = 2, txQueues = 2})
-	local dev2 = device.config({port = args.dev2, rxQueues = 2, txQueues = 2})
+	local dev1 = device.config({port = args.dev1, txQueues = 2})
+	local dev2 = device.config({port = args.dev2, rxQueues = 2})
 	device.waitForLinks()
-	dev1:getTxQueue(0):setRate(args.rate)
-	dev2:getTxQueue(0):setRate(args.rate)
-	mg.startTask("loadSlave", dev1:getTxQueue(0))
-	if dev1 ~= dev2 then
-		mg.startTask("loadSlave", dev2:getTxQueue(0))
+
+	pktsize = args.pktsize
+	if args.pktsize < 64 then
+		pktsize = 64
 	end
-	stats.startStatsTask{dev1, dev2}
+
+	rate = args.rate
+	if args.pktrate > 0 then
+		rate = (args.pktrate * (pktsize) * 8) / 1000000
+	end
+	dev1:getTxQueue(0):setRate(rate)
+	mg.startTask("loadSlave", dev1:getTxQueue(0), pktsize)
+	--if dev1 ~= dev2 then
+	--	mg.startTask("loadSlave", dev2:getTxQueue(0), pktsize)
+	--end
+	--stats.startStatsTask{dev1}
 	mg.startSharedTask("timerSlave", dev1:getTxQueue(1), dev2:getRxQueue(1), args.file)
 	mg.waitForTasks()
 end
 
-function loadSlave(queue)
+function loadSlave(queue, pktsize)
 	local mem = memory.createMemPool(function(buf)
 		buf:getEthernetPacket():fill{
 			ethSrc = txDev,
@@ -52,19 +62,25 @@ function loadSlave(queue)
 	end)
 	local bufs = mem:bufArray()
 	while mg.running() do
-		bufs:alloc(PKT_SIZE)
+		bufs:alloc(pktsize - 4)
 		queue:send(bufs)
 	end
 end
 
 function timerSlave(txQueue, rxQueue, histfile)
+	local txCtr = stats:newDevTxCounter(txQueue, "CSV", 'throughput-tx.csv')
+	local rxCtr = stats:newDevRxCounter(rxQueue, "CSV", 'throughput-rx.csv')
+
 	local timestamper = ts:newTimestamper(txQueue, rxQueue)
 	local hist = hist:new()
 	mg.sleepMillis(1000) -- ensure that the load task is running
 	while mg.running() do
 		hist:update(timestamper:measureLatency(function(buf) buf:getEthernetPacket().eth.dst:setString(ETH_DST) end))
+		txCtr:update()
+		rxCtr:update()
 	end
+	txCtr:finalize()
+	rxCtr:finalize()
 	hist:print()
 	hist:save(histfile)
 end
-

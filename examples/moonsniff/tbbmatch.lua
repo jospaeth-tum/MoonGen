@@ -26,7 +26,7 @@ local band = bit.band
 
 local pktmatch = nil
 local scratchpad = nil
-local SCR_SIZE = 16 -- size of the scratchpad in bytes, must always be multiple of 8 for hash to work
+local SCR_SIZE = 64 -- size of the scratchpad in bytes, must always be multiple of 8 for hash to work
                     -- maximum: 64 (largest supported key size for hashmap)
 
 local TIME_THRESH = -50 -- negative timevalues smaller than this value are not allowed
