@@ -30,6 +30,7 @@ function configure(parser)
 	parser:argument("rxDev", "Device to receive from."):convert(tonumber)
 	parser:option("-r --rate", "Transmit rate in Mbit/s."):default(10000):convert(tonumber)
 	parser:option("-f --flows", "Number of flows (randomized source IP)."):default(4):convert(tonumber)
+	parser:option("-w --warm-up", "Warmup-phase in seconds"):default(0):convert(tonumber)
 	parser:option("-s --size", "Packet size."):default(60):convert(tonumber)
 end
 
@@ -43,7 +44,7 @@ function master(args)
 		txDev:getTxQueue(0):setRate(args.rate - (args.size + 4) * 8 / 1000)
 	end
 	mg.startTask("loadSlave", txDev:getTxQueue(0), rxDev, args.size, args.flows)
-	mg.startTask("timerSlave", txDev:getTxQueue(1), rxDev:getRxQueue(1), args.size, args.flows)
+	mg.startTask("timerSlave", txDev:getTxQueue(1), rxDev:getRxQueue(1), args.size, args.flows, args.warm-up)
 	arp.startArpTask{
 		-- run ARP on both ports
 		{ rxQueue = rxDev:getRxQueue(2), txQueue = rxDev:getTxQueue(2), ips = RX_IP },
@@ -104,7 +105,7 @@ function loadSlave(queue, rxDev, size, flows)
 	rxCtr:finalize()
 end
 
-function timerSlave(txQueue, rxQueue, size, flows)
+function timerSlave(txQueue, rxQueue, size, flows, warmUp)
 	doArp()
 	if size < 84 then
 		log:warn("Packet size %d is smaller than minimum timestamp size 84. Timestamped packets will be larger than load packets.", size)
@@ -112,7 +113,7 @@ function timerSlave(txQueue, rxQueue, size, flows)
 	end
 	local timestamper = ts:newUdpTimestamper(txQueue, rxQueue)
 	local hist = hist:new()
-	mg.sleepMillis(1000) -- ensure that the load task is running
+	mg.sleepMillis(1000+(1000*warmUp)) -- ensure that the load task is running and include WarmUp phase
 	local counter = 0
 	local rateLimit = timer:new(0.001)
 	local baseIP = parseIPAddress(SRC_IP_BASE)
