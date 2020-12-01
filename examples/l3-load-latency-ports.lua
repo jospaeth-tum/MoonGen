@@ -11,10 +11,10 @@ local log    = require "log"
 
 -- set addresses here
 local DST_MAC		= nil -- resolved via ARP on GW_IP or DST_IP, can be overriden with a string here
-local SRC_IP	  = "10.0.0.10"
+local SRC_IP	  	= "10.0.0.10"
 local DST_IP		= "10.0.250.10"
 local SRC_PORT		= 1234
-local DST_PORT_BASE		= 1000
+local DST_PORT_BASE	= 1001
 
 -- answer ARP requests for this IP on the rx port
 -- change this if benchmarking something like a NAT device
@@ -112,24 +112,30 @@ function timerSlave(txQueue, rxQueue, size, flows, warmUp)
 		size = 84
 	end
 	local timestamper = ts:newUdpTimestamper(txQueue, rxQueue)
-	local hist = hist:new()
+	local histogram = {}
+        for i=1,flows do
+                table.insert(histogram,hist:new())
+        end
 	mg.sleepMillis(1000+(1000*warmUp)) -- ensure that the load task is running and include WarmUp phase
 	local counter = 0
 	local rateLimit = timer:new(0.001)
   local dstPort = tonumber(DST_PORT_BASE)
 	while mg.running() do
-		hist:update(timestamper:measureLatency(size, function(buf)
-			fillUdpPacket(buf, size)
-			local pkt = buf:getUdpPacket()
-			pkt.udp:setDstPort(dstPort + tonumber(counter))
-			counter = incAndWrap(counter, flows)
-		end))
-		rateLimit:wait()
-		rateLimit:reset()
-	end
-	-- print the latency stats after all the other stuff
-	mg.sleepMillis(300)
-	hist:print()
-	hist:save("histogram.csv")
+                local lat = timestamper:measureLatency(size, function(buf)
+                        fillUdpPacket(buf, size)
+                        local pkt = buf:getUdpPacket()
+                        pkt.udp:setDstPort(dstPort + tonumber(counter))
+                        counter = incAndWrap(counter, flows)
+                end)
+                histogram[counter+1]:update(lat)
+                rateLimit:wait()
+                rateLimit:reset()
+        end
+        -- print the latency stats after all the other stuff
+        mg.sleepMillis(300)
+        for i=1,flows do
+                histogram[i]:print()
+                histogram[i]:save("histogram"..tostring(i)..".csv")
+        end
 end
 
