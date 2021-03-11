@@ -145,6 +145,7 @@ function loadSlave(queue, ports, burst)
 		end
 		-- send packets
 		bufs:offloadUdpChecksums()
+		queue:send(bufs)
 		txCtr:update()
 	end
 	txCtr:finalize()

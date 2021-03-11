@@ -110,6 +110,7 @@ function loadSlave(queue, port, burst)
 		bufs:alloc(PKT_SIZE)
 		-- send packets
 		bufs:offloadUdpChecksums()
+		queue:send(bufs)
 		txCtr:update()
 	end
 	txCtr:finalize()
