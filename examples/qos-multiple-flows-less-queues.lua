@@ -35,32 +35,43 @@ function configure(parser)
 	parser:option("-w --warmup", "Warmup-phase in seconds"):default(0):convert(tonumber)
 end
 
+local function tableOfPorts(flows)
+    local ports = {}
+	for i=1,flows do
+		local temp_port = DST_PORT_BASE + i
+		for x = 1, rate[i] do
+			table.insert(ports, temp_port)
+		end
+	end
+	ports = shuffle(ports)
+	return ports
+end
+
 function master(args)
 	if args.flows ~= (table.getn(args.rate) or table.getn(args.burst)) then
 		log:error("Rate and burst are not matching the numbers of flows")
 		return -1 -- Error as we have no result here, we need one definition per flow
 	end
 	local txDev, rxDev
-	txDev = device.config{port = args.txDev, rxQueues = 2, txQueues = args.flows + 1 }
+	txDev = device.config{port = args.txDev, rxQueues = 2, txQueues = 3 }
 	rxDev = device.config{port = args.rxDev, rxQueues = 2, txQueues = 2}
 	-- wait until the links are up
 	device.waitForLinks()
 	for i=1,args.flows,1
 	do
 		log:info("Sending Flow %d with %d MBit/s traffic and Burst %d to UDP port %d", i, args.rate[i], args.burst[i], DST_PORT_BASE + i)
-		txDev:getTxQueue(i):setRate(args.rate[i])
 	end
-
+	txDev:getTxQueue(i):setRate(table.reduce(args.rate,
+        function (a, b)
+            return a + b
+        end))
+    local ports = tableOfPorts(args.flows)
 	-- Starting the Tasks for the Queues
-	for i=1,args.flows,1
-	do
-		--TODO Test and mybe move to same as timer (One Queue with multiple flows sending rate)
-		mg.startTask("loadSlave", txDev:getTxQueue(i), DST_PORT_BASE + i, args.burst[i])
-	end
+	mg.startTask("loadSlave", txDev:getTxQueue(0), ports, args.burst[i])
 	-- count the incoming packets
 	mg.startTask("counterSlave", rxDev:getRxQueue(0))
 	-- measure latency from a second queue
-	mg.startSharedTask("timerSlave", txDev:getTxQueue(0), rxDev:getRxQueue(1), args.flows, args.rate, args.warmup)
+	mg.startSharedTask("timerSlave", txDev:getTxQueue(1), rxDev:getRxQueue(1), args.flows, args.rate, args.warmup)
 	arp.startArpTask{
 		-- run ARP on both ports
 		{ rxQueue = rxDev:getRxQueue(1), txQueue = rxDev:getTxQueue(1), ips = RX_IP },
@@ -83,6 +94,17 @@ local function doArp()
 	log:info("Destination mac: %s", DST_MAC)
 end
 
+
+-- Source: https://stackoverflow.com/a/32167188
+function shuffle(tbl) -- suffles numeric indices
+    local len, random = #tbl, math.random ;
+    for i = len, 2, -1 do
+        local j = random( 1, i );
+        tbl[i], tbl[j] = tbl[j], tbl[i];
+    end
+    return tbl;
+end
+
 local function fillUdpPacket(buf, len, port)
 	buf:getUdpPacket():fill{
 		ethSrc = queue,
@@ -95,7 +117,7 @@ local function fillUdpPacket(buf, len, port)
 	}
 end
 
-function loadSlave(queue, port, burst)
+function loadSlave(queue, ports, burst)
 	--TODO Add Burst
 	doArp()
 	mg.sleepMillis(100) -- wait a few milliseconds to ensure that the rx thread is running
@@ -109,6 +131,10 @@ function loadSlave(queue, port, burst)
 	while mg.running() do
 		-- allocate buffers from the mem pool and store them in this array
 		bufs:alloc(PKT_SIZE)
+		for i, buf in ipairs(bufs) do
+			local pkt = buf:getUdpPacket()
+			pkt.udp:setDstPort(ports[math.random(1,table.getn(ports))])
+		end
 		-- send packets
 		bufs:offloadUdpChecksums()
 		txCtr:updateWithSize(queue:send(bufs), PKT_SIZE)
@@ -149,28 +175,9 @@ function counterSlave(queue)
 	end
 end
 
--- Source: https://stackoverflow.com/a/32167188
-function shuffle(tbl) -- suffles numeric indices
-    local len, random = #tbl, math.random ;
-    for i = len, 2, -1 do
-        local j = random( 1, i );
-        tbl[i], tbl[j] = tbl[j], tbl[i];
-    end
-    return tbl;
-end
-
-
 
 function timerSlave(txQueue, rxQueue, flows, rate, warmUp)
 	doArp()
-	local ports = {}
-	for i=1,flows do
-		local temp_port = DST_PORT_BASE + i
-		for x = 1, rate[i] do
-			table.insert(ports, temp_port)
-		end
-	end
-	ports = shuffle(ports)
 	local timestamper = ts:newUdpTimestamper(txQueue, rxQueue)
 	local histogram = {}
         for i=1,flows do
