@@ -79,7 +79,7 @@ function master(args)
 	-- count the incoming packets
 	mg.startTask("counterSlave", rxDev:getRxQueue(0))
 	-- measure latency from a second queue
-	mg.startSharedTask("timerSlave", txDev:getTxQueue(1), rxDev:getRxQueue(1), args.flows, args.rate, args.warmup)
+	mg.startSharedTask("timerSlave", txDev:getTxQueue(1), rxDev:getRxQueue(1), args.flows, ports, args.warmup)
 	arp.startArpTask{
 		-- run ARP on both ports
 		{ rxQueue = rxDev:getRxQueue(1), txQueue = rxDev:getTxQueue(1), ips = RX_IP },
@@ -184,7 +184,7 @@ function counterSlave(queue)
 end
 
 
-function timerSlave(txQueue, rxQueue, flows, rate, warmUp)
+function timerSlave(txQueue, rxQueue, flows, ports, warmUp)
 	doArp()
 	local timestamper = ts:newUdpTimestamper(txQueue, rxQueue)
 	local histogram = {}
@@ -196,7 +196,6 @@ function timerSlave(txQueue, rxQueue, flows, rate, warmUp)
 	local rateLimit = timer:new(0.001)
   	local dstPort = tonumber(DST_PORT_BASE)
 	while mg.running() do
-		-- TODO Maybe iterate over the array instead of random as it is already randomly distributed
                 local lat = timestamper:measureLatency(PKT_SIZE, function(buf)
 						port=ports[math.random(1,table.getn(ports))]
                         fillUdpPacket(buf, PKT_SIZE, port)
