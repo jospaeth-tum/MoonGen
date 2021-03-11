@@ -102,7 +102,7 @@ function loadSlave(queue, port, burst)
 		fillUdpPacket(buf, PKT_SIZE ,port)
 	end)
 	-- TODO: fix per-queue stats counters to use the statistics registers here
-	local txCtr = stats:newManualTxCounter("Port " .. port, "plain")
+	local txCtr = stats:newDevTxCounter(queue, "plain")
 	-- a buf array is essentially a very thing wrapper around a rte_mbuf*[], i.e. an array of pointers to packet buffers
 	local bufs = mem:bufArray()
 	while mg.running() do
@@ -110,7 +110,7 @@ function loadSlave(queue, port, burst)
 		bufs:alloc(PKT_SIZE)
 		-- send packets
 		bufs:offloadUdpChecksums()
-		txCtr:updateWithSize(queue:send(bufs), PKT_SIZE)
+		txCtr:update()
 	end
 	txCtr:finalize()
 end

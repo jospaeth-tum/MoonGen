@@ -132,20 +132,20 @@ function loadSlave(queue, ports, burst)
 	local mem = memory.createMemPool(function(buf)
 		fillUdpPacket(buf, PKT_SIZE, port)
 	end)
-	-- TODO: fix per-queue stats counters to use the statistics registers here
-	local txCtr = stats:newManualTxCounter("TX All", "plain")
+	local txCtr = stats:newDevTxCounter(queue, "plain")
 	-- a buf array is essentially a very thing wrapper around a rte_mbuf*[], i.e. an array of pointers to packet buffers
 	local bufs = mem:bufArray()
+	local numPorts = table.getn(ports)
 	while mg.running() do
 		-- allocate buffers from the mem pool and store them in this array
 		bufs:alloc(PKT_SIZE)
 		for i, buf in ipairs(bufs) do
 			local pkt = buf:getUdpPacket()
-			pkt.udp:setDstPort(ports[math.random(1,table.getn(ports))])
+			pkt.udp:setDstPort(ports[math.random(1,numPorts)])
 		end
 		-- send packets
 		bufs:offloadUdpChecksums()
-		txCtr:updateWithSize(queue:send(bufs), PKT_SIZE)
+		txCtr:update()
 	end
 	txCtr:finalize()
 end
