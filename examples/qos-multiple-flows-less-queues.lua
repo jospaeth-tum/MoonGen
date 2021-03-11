@@ -47,6 +47,17 @@ local function tableOfPorts(flows)
 	return ports
 end
 
+-- Source: https://stackoverflow.com/questions/8695378/how-to-sum-a-table-of-numbers-in-lua
+function sum(t)
+    local sum = 0
+    for k,v in pairs(t) do
+        sum = sum + v
+    end
+
+    return sum
+end
+
+
 function master(args)
 	if args.flows ~= (table.getn(args.rate) or table.getn(args.burst)) then
 		log:error("Rate and burst are not matching the numbers of flows")
@@ -61,10 +72,7 @@ function master(args)
 	do
 		log:info("Sending Flow %d with %d MBit/s traffic and Burst %d to UDP port %d", i, args.rate[i], args.burst[i], DST_PORT_BASE + i)
 	end
-	txDev:getTxQueue(0):setRate(table.reduce(args.rate,
-        function (a, b)
-            return a + b
-        end))
+	txDev:getTxQueue(0):setRate(sum(args.rate))
     local ports = tableOfPorts(args.flows)
 	-- Starting the Tasks for the Queues
 	mg.startTask("loadSlave", txDev:getTxQueue(0), ports, args.burst[i])
