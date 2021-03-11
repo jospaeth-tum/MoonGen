@@ -54,7 +54,6 @@ function master(args)
 	-- Starting the Tasks for the Queues
 	for i=1,args.flows,1
 	do
-		--TODO Test and mybe move to same as timer (One Queue with multiple flows sending rate)
 		mg.startTask("loadSlave", txDev:getTxQueue(i), DST_PORT_BASE + i, args.burst[i])
 	end
 	-- count the incoming packets
@@ -100,7 +99,7 @@ function loadSlave(queue, port, burst)
 	doArp()
 	mg.sleepMillis(100) -- wait a few milliseconds to ensure that the rx thread is running
 	local mem = memory.createMemPool(function(buf)
-		fillUdpPacket(buf, port, PKT_SIZE)
+		fillUdpPacket(buf, PKT_SIZE ,port)
 	end)
 	-- TODO: fix per-queue stats counters to use the statistics registers here
 	local txCtr = stats:newManualTxCounter("Port " .. port, "plain")
