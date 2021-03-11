@@ -54,14 +54,14 @@ function master(args)
 	end
 	local txDev, rxDev
 	txDev = device.config{port = args.txDev, rxQueues = 2, txQueues = 3 }
-	rxDev = device.config{port = args.rxDev, rxQueues = 2, txQueues = 2}
+	rxDev = device.config{port = args.rxDev, rxQueues = 2, txQueues = 2 }
 	-- wait until the links are up
 	device.waitForLinks()
 	for i=1,args.flows,1
 	do
 		log:info("Sending Flow %d with %d MBit/s traffic and Burst %d to UDP port %d", i, args.rate[i], args.burst[i], DST_PORT_BASE + i)
 	end
-	txDev:getTxQueue(i):setRate(table.reduce(args.rate,
+	txDev:getTxQueue(0):setRate(table.reduce(args.rate,
         function (a, b)
             return a + b
         end))
