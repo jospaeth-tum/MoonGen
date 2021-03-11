@@ -35,7 +35,7 @@ function configure(parser)
 	parser:option("-w --warmup", "Warmup-phase in seconds"):default(0):convert(tonumber)
 end
 
-local function tableOfPorts(flows)
+local function tableOfPorts(flows, rate)
     local ports = {}
 	for i=1,flows do
 		local temp_port = DST_PORT_BASE + i
@@ -73,7 +73,7 @@ function master(args)
 		log:info("Sending Flow %d with %d MBit/s traffic and Burst %d to UDP port %d", i, args.rate[i], args.burst[i], DST_PORT_BASE + i)
 	end
 	txDev:getTxQueue(0):setRate(sum(args.rate))
-    local ports = tableOfPorts(args.flows)
+    local ports = tableOfPorts(args.flows, args.rate)
 	-- Starting the Tasks for the Queues
 	mg.startTask("loadSlave", txDev:getTxQueue(0), ports, args.burst[i])
 	-- count the incoming packets
