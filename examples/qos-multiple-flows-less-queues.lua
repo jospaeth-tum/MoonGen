@@ -130,7 +130,7 @@ function loadSlave(queue, ports, burst)
 	doArp()
 	mg.sleepMillis(100) -- wait a few milliseconds to ensure that the rx thread is running
 	local mem = memory.createMemPool(function(buf)
-		fillUdpPacket(buf, port, PKT_SIZE)
+		fillUdpPacket(buf, PKT_SIZE, port)
 	end)
 	-- TODO: fix per-queue stats counters to use the statistics registers here
 	local txCtr = stats:newManualTxCounter("TX All", "plain")
