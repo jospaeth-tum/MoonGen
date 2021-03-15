@@ -135,13 +135,15 @@ function loadSlave(queue, ports, burst)
 	local txCtr = stats:newDevTxCounter(queue, "plain")
 	-- a buf array is essentially a very thing wrapper around a rte_mbuf*[], i.e. an array of pointers to packet buffers
 	local bufs = mem:bufArray()
+	local counter = 0
 	local numPorts = table.getn(ports)
 	while mg.running() do
 		-- allocate buffers from the mem pool and store them in this array
 		bufs:alloc(PKT_SIZE)
 		for i, buf in ipairs(bufs) do
 			local pkt = buf:getUdpPacket()
-			pkt.udp:setDstPort(ports[math.random(1,numPorts)])
+			pkt.udp:setDstPort(ports[counter+1])
+			counter = incAndWrap(counter, table.getn(ports))
 		end
 		-- send packets
 		bufs:offloadUdpChecksums()
@@ -194,13 +196,15 @@ function timerSlave(txQueue, rxQueue, flows, ports, warmUp)
         end
 	mg.sleepMillis(1000+(1000*warmUp)) -- ensure that the load task is running and include WarmUp phase
 	local flow = 0
+	local counter = 0
 	local rateLimit = timer:new(0.001)
   	local dstPort = tonumber(DST_PORT_BASE)
 	while mg.running() do
                 local lat = timestamper:measureLatency(PKT_SIZE, function(buf)
-						port=ports[math.random(1,table.getn(ports))]
+						port=ports[counter+1]
                         fillUdpPacket(buf, PKT_SIZE, port)
                         flow = port - DST_PORT_BASE
+						counter = incAndWrap(counter, table.getn(ports))
                 end)
                 histogram[flow]:update(lat)
                 rateLimit:wait()
