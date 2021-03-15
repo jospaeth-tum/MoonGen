@@ -33,6 +33,7 @@ function configure(parser)
 	parser:option("-b --burst", "Burst in bytes"):args("*"):default(10000):convert(tonumber)
 	parser:option("-f --flows", "Number of flows (randomized dest Port)."):default(4):convert(tonumber)
 	parser:option("-w --warmup", "Warmup-phase in seconds"):default(0):convert(tonumber)
+	parser:option("-s --size", "Packet size."):default(84):convert(tonumber)
 end
 
 local function tableOfPorts(flows, rate)
@@ -75,11 +76,11 @@ function master(args)
 	txDev:getTxQueue(0):setRate(sum(args.rate))
     local ports = tableOfPorts(args.flows, args.rate)
 	-- Starting the Tasks for the Queues
-	mg.startTask("loadSlave", txDev:getTxQueue(0), ports, args.burst[i])
+	mg.startTask("loadSlave", txDev:getTxQueue(0), ports, args.burst[i], args.size)
 	-- count the incoming packets
 	mg.startTask("counterSlave", rxDev:getRxQueue(0))
 	-- measure latency from a second queue
-	mg.startSharedTask("timerSlave", txDev:getTxQueue(1), rxDev:getRxQueue(1), args.flows, ports, args.warmup)
+	mg.startSharedTask("timerSlave", txDev:getTxQueue(1), rxDev:getRxQueue(1), args.flows, ports, args.warmup, args.size)
 	arp.startArpTask{
 		-- run ARP on both ports
 		{ rxQueue = rxDev:getRxQueue(2), txQueue = rxDev:getTxQueue(0), ips = RX_IP },
@@ -125,12 +126,12 @@ local function fillUdpPacket(buf, len, port)
 	}
 end
 
-function loadSlave(queue, ports, burst)
+function loadSlave(queue, ports, burst, size)
 	--TODO Add Burst
 	doArp()
 	mg.sleepMillis(100) -- wait a few milliseconds to ensure that the rx thread is running
 	local mem = memory.createMemPool(function(buf)
-		fillUdpPacket(buf, PKT_SIZE, port)
+		fillUdpPacket(buf, size, port)
 	end)
 	local txCtr = stats:newDevTxCounter(queue, "plain")
 	-- a buf array is essentially a very thing wrapper around a rte_mbuf*[], i.e. an array of pointers to packet buffers
@@ -139,7 +140,7 @@ function loadSlave(queue, ports, burst)
 	local numPorts = table.getn(ports)
 	while mg.running() do
 		-- allocate buffers from the mem pool and store them in this array
-		bufs:alloc(PKT_SIZE)
+		bufs:alloc(size)
 		for i, buf in ipairs(bufs) do
 			local pkt = buf:getUdpPacket()
 			pkt.udp:setDstPort(ports[counter+1])
@@ -187,7 +188,7 @@ function counterSlave(queue)
 end
 
 
-function timerSlave(txQueue, rxQueue, flows, ports, warmUp)
+function timerSlave(txQueue, rxQueue, flows, ports, warmUp, size)
 	doArp()
 	local timestamper = ts:newUdpTimestamper(txQueue, rxQueue)
 	local histogram = {}
@@ -200,7 +201,7 @@ function timerSlave(txQueue, rxQueue, flows, ports, warmUp)
 	local rateLimit = timer:new(0.001)
   	local dstPort = tonumber(DST_PORT_BASE)
 	while mg.running() do
-                local lat = timestamper:measureLatency(PKT_SIZE, function(buf)
+                local lat = timestamper:measureLatency(size, function(buf)
 						port=ports[counter+1]
                         fillUdpPacket(buf, PKT_SIZE, port)
                         flow = port - DST_PORT_BASE
