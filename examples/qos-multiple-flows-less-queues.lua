@@ -64,8 +64,8 @@ function master(args)
 		return -1 -- Error as we have no result here, we need one definition per flow
 	end
 	local txDev, rxDev
-	txDev = device.config{port = args.txDev, rxQueues = 2, txQueues = 3 }
-	rxDev = device.config{port = args.rxDev, rxQueues = 2, txQueues = 2 }
+	txDev = device.config{port = args.txDev, rxQueues = 1, txQueues = 3 }
+	rxDev = device.config{port = args.rxDev, rxQueues = 3, txQueues = 1 }
 	-- wait until the links are up
 	device.waitForLinks()
 	for i=1,args.flows,1
@@ -82,9 +82,9 @@ function master(args)
 	mg.startSharedTask("timerSlave", txDev:getTxQueue(1), rxDev:getRxQueue(1), args.flows, ports, args.warmup)
 	arp.startArpTask{
 		-- run ARP on both ports
-		{ rxQueue = rxDev:getRxQueue(1), txQueue = rxDev:getTxQueue(1), ips = RX_IP },
+		{ rxQueue = rxDev:getRxQueue(2), txQueue = rxDev:getTxQueue(0), ips = RX_IP },
 		-- we need an IP address to do ARP requests on this interface
-		{ rxQueue = txDev:getRxQueue(0), txQueue = txDev:getTxQueue(0), ips = ARP_IP }
+		{ rxQueue = txDev:getRxQueue(2), txQueue = txDev:getTxQueue(0), ips = ARP_IP }
 	}
 	-- wait until all tasks are finished
 	mg.waitForTasks()
