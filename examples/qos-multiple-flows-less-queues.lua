@@ -84,7 +84,7 @@ function master(args)
 		-- run ARP on both ports
 		{ rxQueue = rxDev:getRxQueue(2), txQueue = rxDev:getTxQueue(0), ips = RX_IP },
 		-- we need an IP address to do ARP requests on this interface
-		{ rxQueue = txDev:getRxQueue(2), txQueue = txDev:getTxQueue(0), ips = ARP_IP }
+		{ rxQueue = txDev:getRxQueue(0), txQueue = txDev:getTxQueue(2), ips = ARP_IP }
 	}
 	-- wait until all tasks are finished
 	mg.waitForTasks()
