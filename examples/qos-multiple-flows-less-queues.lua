@@ -10,19 +10,11 @@ local timer		= require "timer"
 local arp    	= require "proto.arp"
 local log		= require "log"
 
-local DST_MAC		= nil -- resolved via ARP on GW_IP or DST_IP, can be overriden with a string here
+local DST_MAC		= "54:54:00:00:00:00" -- resolved via ARP on GW_IP or DST_IP, can be overriden with a string here
 local SRC_IP	  	= "10.0.0.10"
 local DST_IP		= "10.0.250.10"
 local SRC_PORT		= 1234
 local DST_PORT_BASE	= 1000
-
--- answer ARP requests for this IP on the rx port
--- change this if benchmarking something like a NAT device
-local RX_IP		= DST_IP
--- used to resolve DST_MAC
-local GW_IP		= "10.0.0.1"
--- used as source IP to resolve GW_IP to DST_MAC
-local ARP_IP	= SRC_IP
 
 function configure(parser)
 	parser:description("Generates two flows of traffic and compares them. This example requires an ixgbe NIC due to the used hardware features.")
@@ -30,7 +22,7 @@ function configure(parser)
 	parser:argument("rxDev", "Device to receive from."):convert(tonumber)
 	parser:option("-r --rate", "Transmit rate in Mbit/s."):args("*"):default(10000):convert(tonumber)
 	parser:option("-v --vlan", "VLANs per Flow"):args("*"):default(-1):convert(tonumber)
-	parser:option("-m --mac", "MAC per VLAN"):args("*"):default(-1):convert(tonumber)
+	parser:option("-m --mac", "MAC per VLAN"):args("*"):default(-1)
 	parser:option("-b --burst", "Burst in bytes"):args("*"):default(10000):convert(tonumber)
 	parser:option("-f --flows", "Number of flows (randomized dest Port)."):default(4):convert(tonumber)
 	parser:option("-w --warmup", "Warmup-phase in seconds"):default(0):convert(tonumber)
@@ -81,27 +73,9 @@ function master(args)
 	mg.startTask("counterSlave", rxDev:getRxQueue(0))
 	-- measure latency from a second queue
 	mg.startSharedTask("timerSlave", txDev:getTxQueue(1), rxDev:getRxQueue(1), args.flows, flows, args.warmup, args.size, args.vlan, args.mac)
-	arp.startArpTask{
-		-- run ARP on both ports
-		{ rxQueue = rxDev:getRxQueue(2), txQueue = rxDev:getTxQueue(0), ips = RX_IP },
-		-- we need an IP address to do ARP requests on this interface
-		{ rxQueue = txDev:getRxQueue(0), txQueue = txDev:getTxQueue(2), ips = ARP_IP }
-	}
 	-- wait until all tasks are finished
 	mg.waitForTasks()
 	end
-
-local function doArp()
-	if not DST_MAC then
-		log:info("Performing ARP lookup on %s", GW_IP)
-		DST_MAC = arp.blockingLookup(GW_IP, 5)
-		if not DST_MAC then
-			log:info("ARP lookup failed, using default destination mac address")
-			return
-		end
-	end
-	log:info("Destination mac: %s", DST_MAC)
-end
 
 
 -- Source: https://stackoverflow.com/a/32167188
@@ -127,7 +101,6 @@ local function fillUdpPacket(buf, len, port, dst_mac)
 end
 
 function loadSlave(queue, flows, burst, size, vlan, mac)
-	doArp()
 	mg.sleepMillis(100) -- wait a few milliseconds to ensure that the rx thread is running
 	local mem = memory.createMemPool(function(buf)
 		fillUdpPacket(buf, size, port, DST_MAC)
@@ -190,7 +163,6 @@ end
 
 
 function timerSlave(txQueue, rxQueue, flows, flowTable, warmUp, size, vlan)
-	doArp()
 	local timestamper = ts:newUdpTimestamper(txQueue, rxQueue)
 	local histogram = {}
         for i=1,flows do
