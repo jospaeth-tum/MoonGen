@@ -41,7 +41,7 @@ local function tableOfFlows(flows, rate)
     local flow_table = {}
 	for i=1,flows do
 		for x = 1, rate[i] do
-			table.insert(ports, i)
+			table.insert(flow_table, i)
 		end
 	end
 	flow_table = shuffle(flow_table)
