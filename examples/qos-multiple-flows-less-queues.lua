@@ -30,22 +30,22 @@ function configure(parser)
 	parser:argument("txDev", "Device to transmit from."):convert(tonumber)
 	parser:argument("rxDev", "Device to receive from."):convert(tonumber)
 	parser:option("-r --rate", "Transmit rate in Mbit/s."):args("*"):default(10000):convert(tonumber)
+	parser:option("-v --vlan", "Transmit rate in Mbit/s."):args("*"):default(-1):convert(tonumber)
 	parser:option("-b --burst", "Burst in bytes"):args("*"):default(10000):convert(tonumber)
 	parser:option("-f --flows", "Number of flows (randomized dest Port)."):default(4):convert(tonumber)
 	parser:option("-w --warmup", "Warmup-phase in seconds"):default(0):convert(tonumber)
 	parser:option("-s --size", "Packet size."):default(84):convert(tonumber)
 end
 
-local function tableOfPorts(flows, rate)
-    local ports = {}
+local function tableOfFlows(flows, rate)
+    local flow_table = {}
 	for i=1,flows do
-		local temp_port = DST_PORT_BASE + i
 		for x = 1, rate[i] do
-			table.insert(ports, temp_port)
+			table.insert(ports, i)
 		end
 	end
-	ports = shuffle(ports)
-	return ports
+	flow_table = shuffle(flow_table)
+	return flow_table
 end
 
 -- Source: https://stackoverflow.com/questions/8695378/how-to-sum-a-table-of-numbers-in-lua
@@ -60,7 +60,7 @@ end
 
 
 function master(args)
-	if args.flows ~= (table.getn(args.rate) or table.getn(args.burst)) then
+	if args.flows ~= (table.getn(args.rate) or table.getn(args.burst) or table.getn(args.vlan)) then
 		log:error("Rate and burst are not matching the numbers of flows")
 		return -1 -- Error as we have no result here, we need one definition per flow
 	end
@@ -74,13 +74,13 @@ function master(args)
 		log:info("Sending Flow %d with %d MBit/s traffic and Burst %d to UDP port %d", i, args.rate[i], args.burst[i], DST_PORT_BASE + i)
 	end
 	txDev:getTxQueue(0):setRate(sum(args.rate))
-    local ports = tableOfPorts(args.flows, args.rate)
+    local flows = tableOfFlows(args.flows, args.rate)
 	-- Starting the Tasks for the Queues
-	mg.startTask("loadSlave", txDev:getTxQueue(0), ports, args.burst[i], args.size)
+	mg.startTask("loadSlave", txDev:getTxQueue(0), flows, args.burst[i], args.size, args.vlan)
 	-- count the incoming packets
 	mg.startTask("counterSlave", rxDev:getRxQueue(0))
 	-- measure latency from a second queue
-	mg.startSharedTask("timerSlave", txDev:getTxQueue(1), rxDev:getRxQueue(1), args.flows, ports, args.warmup, args.size)
+	mg.startSharedTask("timerSlave", txDev:getTxQueue(1), rxDev:getRxQueue(1), args.flows, flows, args.warmup, args.size, args.vlan)
 	arp.startArpTask{
 		-- run ARP on both ports
 		{ rxQueue = rxDev:getRxQueue(2), txQueue = rxDev:getTxQueue(0), ips = RX_IP },
@@ -126,8 +126,7 @@ local function fillUdpPacket(buf, len, port)
 	}
 end
 
-function loadSlave(queue, ports, burst, size)
-	--TODO Add Burst
+function loadSlave(queue, flows, burst, size, vlan)
 	doArp()
 	mg.sleepMillis(100) -- wait a few milliseconds to ensure that the rx thread is running
 	local mem = memory.createMemPool(function(buf)
@@ -137,14 +136,15 @@ function loadSlave(queue, ports, burst, size)
 	-- a buf array is essentially a very thing wrapper around a rte_mbuf*[], i.e. an array of pointers to packet buffers
 	local bufs = mem:bufArray()
 	local counter = 0
-	local numPorts = table.getn(ports)
+	local numFlowEntries = table.getn(flows)
 	while mg.running() do
 		-- allocate buffers from the mem pool and store them in this array
 		bufs:alloc(size)
 		for i, buf in ipairs(bufs) do
 			local pkt = buf:getUdpPacket()
-			pkt.udp:setDstPort(ports[counter+1])
-			counter = incAndWrap(counter, table.getn(ports))
+			pkt.udp:setDstPort(DST_PORT_BASE + flows[counter+1])
+			buf:setVlan(vlan[flows[counter+1]])
+			counter = incAndWrap(counter, numFlowEntries)
 		end
 		-- send packets
 		bufs:offloadUdpChecksums()
@@ -188,7 +188,7 @@ function counterSlave(queue)
 end
 
 
-function timerSlave(txQueue, rxQueue, flows, ports, warmUp, size)
+function timerSlave(txQueue, rxQueue, flows, flowTable, warmUp, size, vlan)
 	doArp()
 	local timestamper = ts:newUdpTimestamper(txQueue, rxQueue)
 	local histogram = {}
@@ -199,13 +199,13 @@ function timerSlave(txQueue, rxQueue, flows, ports, warmUp, size)
 	local flow = 0
 	local counter = 0
 	local rateLimit = timer:new(0.001)
-  	local dstPort = tonumber(DST_PORT_BASE)
 	while mg.running() do
                 local lat = timestamper:measureLatency(size, function(buf)
-						port=ports[counter+1]
+						port=DST_PORT_BASE + flowTable[counter+1]
                         fillUdpPacket(buf, PKT_SIZE, port)
-                        flow = port - DST_PORT_BASE
-						counter = incAndWrap(counter, table.getn(ports))
+                        flow = flowTable[counter+1]
+						buf:setVlan(vlan[flow])
+						counter = incAndWrap(counter, table.getn(flowTable))
                 end)
                 histogram[flow]:update(lat)
                 rateLimit:wait()
