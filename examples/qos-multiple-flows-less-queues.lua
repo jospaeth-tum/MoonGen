@@ -112,7 +112,7 @@ function convertMacAddress(address)
     local convertedAddress = 0
     for i = 1, 6 do
         convertedAddress = convertedAddress +
-                           tonumber(bytes[#bytes + 1 - i], 16) * 256 ^ (i - 1)
+                           tonumber(bytes[i], 16) * 256 ^ (i - 1)
     end
     return convertedAddress
 end
