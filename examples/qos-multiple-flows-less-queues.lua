@@ -10,7 +10,6 @@ local timer		= require "timer"
 local arp    	= require "proto.arp"
 local log		= require "log"
 
-local PKT_SIZE	= 124 -- without CRC
 local DST_MAC		= nil -- resolved via ARP on GW_IP or DST_IP, can be overriden with a string here
 local SRC_IP	  	= "10.0.0.10"
 local DST_IP		= "10.0.250.10"
@@ -30,7 +29,8 @@ function configure(parser)
 	parser:argument("txDev", "Device to transmit from."):convert(tonumber)
 	parser:argument("rxDev", "Device to receive from."):convert(tonumber)
 	parser:option("-r --rate", "Transmit rate in Mbit/s."):args("*"):default(10000):convert(tonumber)
-	parser:option("-v --vlan", "Transmit rate in Mbit/s."):args("*"):default(-1):convert(tonumber)
+	parser:option("-v --vlan", "VLANs per Flow"):args("*"):default(-1):convert(tonumber)
+	parser:option("-m --mac", "MAC per VLAN"):args("*"):default(-1):convert(tonumber)
 	parser:option("-b --burst", "Burst in bytes"):args("*"):default(10000):convert(tonumber)
 	parser:option("-f --flows", "Number of flows (randomized dest Port)."):default(4):convert(tonumber)
 	parser:option("-w --warmup", "Warmup-phase in seconds"):default(0):convert(tonumber)
@@ -76,11 +76,11 @@ function master(args)
 	txDev:getTxQueue(0):setRate(sum(args.rate))
     local flows = tableOfFlows(args.flows, args.rate)
 	-- Starting the Tasks for the Queues
-	mg.startTask("loadSlave", txDev:getTxQueue(0), flows, args.burst[i], args.size, args.vlan)
+	mg.startTask("loadSlave", txDev:getTxQueue(0), flows, args.burst[i], args.size, args.vlan, args.mac)
 	-- count the incoming packets
 	mg.startTask("counterSlave", rxDev:getRxQueue(0))
 	-- measure latency from a second queue
-	mg.startSharedTask("timerSlave", txDev:getTxQueue(1), rxDev:getRxQueue(1), args.flows, flows, args.warmup, args.size, args.vlan)
+	mg.startSharedTask("timerSlave", txDev:getTxQueue(1), rxDev:getRxQueue(1), args.flows, flows, args.warmup, args.size, args.vlan, args.mac)
 	arp.startArpTask{
 		-- run ARP on both ports
 		{ rxQueue = rxDev:getRxQueue(2), txQueue = rxDev:getTxQueue(0), ips = RX_IP },
@@ -114,10 +114,10 @@ function shuffle(tbl) -- suffles numeric indices
     return tbl;
 end
 
-local function fillUdpPacket(buf, len, port)
+local function fillUdpPacket(buf, len, port, dst_mac)
 	buf:getUdpPacket():fill{
 		ethSrc = queue,
-		ethDst = DST_MAC,
+		ethDst = dst_mac,
 		ip4Src = SRC_IP,
 		ip4Dst = DST_IP,
 		udpSrc = SRC_PORT,
@@ -126,11 +126,11 @@ local function fillUdpPacket(buf, len, port)
 	}
 end
 
-function loadSlave(queue, flows, burst, size, vlan)
+function loadSlave(queue, flows, burst, size, vlan, mac)
 	doArp()
 	mg.sleepMillis(100) -- wait a few milliseconds to ensure that the rx thread is running
 	local mem = memory.createMemPool(function(buf)
-		fillUdpPacket(buf, size, port)
+		fillUdpPacket(buf, size, port, DST_MAC)
 	end)
 	local txCtr = stats:newDevTxCounter(queue, "plain")
 	-- a buf array is essentially a very thing wrapper around a rte_mbuf*[], i.e. an array of pointers to packet buffers
@@ -143,6 +143,7 @@ function loadSlave(queue, flows, burst, size, vlan)
 		for i, buf in ipairs(bufs) do
 			local pkt = buf:getUdpPacket()
 			pkt.udp:setDstPort(DST_PORT_BASE + flows[counter+1])
+			pkt.eth:setDst(mac[vlan[flows[counter+1]]])
 			buf:setVlan(vlan[flows[counter+1]])
 			counter = incAndWrap(counter, numFlowEntries)
 		end
@@ -202,7 +203,7 @@ function timerSlave(txQueue, rxQueue, flows, flowTable, warmUp, size, vlan)
 	while mg.running() do
                 local lat = timestamper:measureLatency(size, function(buf)
 						port=DST_PORT_BASE + flowTable[counter+1]
-                        fillUdpPacket(buf, PKT_SIZE, port)
+                        fillUdpPacket(buf, PKT_SIZE, port, mac[vlan[flows[counter+1]]])
                         flow = flowTable[counter+1]
 						buf:setVlan(vlan[flow])
 						counter = incAndWrap(counter, table.getn(flowTable))
