@@ -100,6 +100,23 @@ local function fillUdpPacket(buf, len, port, dst_mac)
 	}
 end
 
+-------------------------------------------------------------------------------
+-- Converts a MAC address from its string representation to a numeric one, in
+-- network byte order.
+-- address  : The address to convert.
+-------------------------------------------------------------------------------
+function convertMacAddress(address)
+	  local bytes = {string.match(address,
+                    '(%x+)[-:](%x+)[-:](%x+)[-:](%x+)[-:](%x+)[-:](%x+)')}
+
+    local convertedAddress = 0
+    for i = 1, 6 do
+        convertedAddress = convertedAddress +
+                           tonumber(bytes[#bytes + 1 - i], 16) * 256 ^ (i - 1)
+    end
+    return convertedAddress
+end
+
 function loadSlave(queue, flows, burst, size, vlan, mac)
 	mg.sleepMillis(100) -- wait a few milliseconds to ensure that the rx thread is running
 	local mem = memory.createMemPool(function(buf)
@@ -116,7 +133,7 @@ function loadSlave(queue, flows, burst, size, vlan, mac)
 		for i, buf in ipairs(bufs) do
 			local pkt = buf:getUdpPacket()
 			pkt.udp:setDstPort(DST_PORT_BASE + flows[counter+1])
-			pkt.eth:setDst(mac[vlan[flows[counter+1]]])
+			pkt.eth:setDst(convertMacAddress(mac[vlan[flows[counter+1]]]))
 			buf:setVlan(vlan[flows[counter+1]])
 			counter = incAndWrap(counter, numFlowEntries)
 		end
