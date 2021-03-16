@@ -192,7 +192,7 @@ function timerSlave(txQueue, rxQueue, flows, flowTable, warmUp, size, vlan)
 	while mg.running() do
                 local lat = timestamper:measureLatency(size, function(buf)
 						port=DST_PORT_BASE + flowTable[counter+1]
-                        fillUdpPacket(buf, PKT_SIZE, port, mac[vlan[flows[counter+1]]])
+                        fillUdpPacket(buf, PKT_SIZE, port, mac[vlan[flowTable[counter+1]]])
                         flow = flowTable[counter+1]
 						buf:setVlan(vlan[flow])
 						counter = incAndWrap(counter, table.getn(flowTable))
