@@ -179,7 +179,7 @@ function counterSlave(queue)
 end
 
 
-function timerSlave(txQueue, rxQueue, flows, flowTable, warmUp, size, vlan)
+function timerSlave(txQueue, rxQueue, flows, flowTable, warmUp, size, vlan, mac)
 	local timestamper = ts:newUdpTimestamper(txQueue, rxQueue)
 	local histogram = {}
         for i=1,flows do
