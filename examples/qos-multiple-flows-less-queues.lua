@@ -32,7 +32,7 @@ end
 local function tableOfFlows(flows, rate)
     local flow_table = {}
 	for i=1,flows do
-		for x = 1, rate[i] do
+		for x = 1, rate[i]*1000 do
 			table.insert(flow_table, i)
 		end
 	end
@@ -42,7 +42,7 @@ end
 
 -- Source: https://stackoverflow.com/questions/8695378/how-to-sum-a-table-of-numbers-in-lua
 function sum(t)
-    local sum = 0
+    local sum = 0.0
     for k,v in pairs(t) do
         sum = sum + v
     end
@@ -63,7 +63,7 @@ function master(args)
 	device.waitForLinks()
 	for i=1,args.flows,1
 	do
-		log:info("Sending Flow %d with %d MBit/s traffic and Burst %d to UDP port %d", i, args.rate[i], args.burst[i], DST_PORT_BASE + i)
+		log:info("Sending Flow %g with %d MBit/s traffic and Burst %d to UDP port %d", i, args.rate[i], args.burst[i], DST_PORT_BASE + i)
 	end
 	txDev:getTxQueue(0):setRate(sum(args.rate))
     local flows = tableOfFlows(args.flows, args.rate)
