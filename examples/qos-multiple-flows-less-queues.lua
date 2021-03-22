@@ -180,7 +180,6 @@ end
 
 
 function timerSlave(txQueue, rxQueue, flows, flowTable, warmUp, size, vlan, mac)
-	warmUp = 0
 	local timestamper = ts:newUdpTimestamper(txQueue, rxQueue)
 	local histogram = {}
         for i=1,flows do
@@ -190,7 +189,6 @@ function timerSlave(txQueue, rxQueue, flows, flowTable, warmUp, size, vlan, mac)
 	local flow = 0
 	local counter = 0
 	local rateLimit = timer:new(0.001)
-	local warmUpCounter = 0
 	while mg.running() do
                 local lat = timestamper:measureLatency(size, function(buf)
 						port=DST_PORT_BASE + flowTable[counter+1]
@@ -199,12 +197,8 @@ function timerSlave(txQueue, rxQueue, flows, flowTable, warmUp, size, vlan, mac)
 						buf:setVlan(vlan[flow])
 						counter = incAndWrap(counter, table.getn(flowTable))
                 end)
-				if warmUpCounter > table.getn(flowTable) then
-					histogram[flow]:update(lat)
-				else
-					warmUpCounter = warmUpCounter + 1
-				end
-				rateLimit:wait()
+                histogram[flow]:update(lat)
+                rateLimit:wait()
                 rateLimit:reset()
         end
         -- print the latency stats after all the other stuff
