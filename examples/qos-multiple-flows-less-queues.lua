@@ -199,7 +199,7 @@ function timerSlave(txQueue, rxQueue, flows, flowTable, warmUp, size, vlan, mac)
 						buf:setVlan(vlan[flow])
 						counter = incAndWrap(counter, table.getn(flowTable))
                 end)
-				if warmUpCounter > 30000 then
+				if warmUpCounter > table.getn(flowTable) then
 					histogram[flow]:update(lat)
 				else
 					warmUpCounter = warmUpCounter + 1
