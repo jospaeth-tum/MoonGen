@@ -183,7 +183,7 @@ function timerSlave(txQueue, rxQueue, flows, flowTable, warmUp, size, vlan, mac)
 	local timestamper = ts:newUdpTimestamper(txQueue, rxQueue)
 	local histogram = {}
         for i=1,flows do
-                table.insert(histogram,{})
+                table.insert(histogram,hist:new())
         end
 	mg.sleepMillis(1000+(1000*warmUp)) -- ensure that the load task is running and include WarmUp phase
 	local flow = 0
@@ -197,17 +197,15 @@ function timerSlave(txQueue, rxQueue, flows, flowTable, warmUp, size, vlan, mac)
 						buf:setVlan(vlan[flow])
 						counter = incAndWrap(counter, table.getn(flowTable))
                 end)
-                table.insert(histogram[flow],os.time()..";"..lat)
+                histogram[flow]:update(lat)
                 rateLimit:wait()
                 rateLimit:reset()
         end
         -- print the latency stats after all the other stuff
         mg.sleepMillis(300)
         for i=1,flows do
-                --histogram[i]:print()
-				local file = io.open ("histogram"..tostring(i)..".csv" , "w+")
-                file:write(table.concat(histogram[i],"\n"))
-				--histogram[i]:save("histogram"..tostring(i)..".csv")
+                histogram[i]:print()
+                histogram[i]:save("histogram"..tostring(i)..".csv")
         end
 end
 
