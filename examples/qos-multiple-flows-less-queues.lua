@@ -188,9 +188,10 @@ function timerSlave(txQueue, rxQueue, flows, flowTable, warmUp, size, vlan, mac)
 	mg.sleepMillis(1000+(1000*warmUp)) -- ensure that the load task is running and include WarmUp phase
 	local flow = 0
 	local counter = 0
+	local numTable = table.getn(flowTable)
 	local rateLimit = timer:new(0.001)
 	while mg.running() do
-				counter = incAndWrap(counter, table.getn(flowTable))
+				counter = incAndWrap(counter, numTable)
 				flow = flowTable[counter+1]
                 local lat = timestamper:measureLatency(size, function(buf)
                         fillUdpPacket(buf, PKT_SIZE, DST_PORT_BASE + flowTable[counter+1], mac[vlan[flowTable[counter+1]]])
