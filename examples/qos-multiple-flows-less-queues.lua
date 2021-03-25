@@ -202,9 +202,9 @@ function timerSlave(txQueue, rxQueue, flows, flowTable, warmUp, size, vlan, mac)
                 rateLimit:reset()
         end
         -- print the latency stats after all the other stuff
-        mg.sleepMillis(300)
+        --mg.sleepMillis()
         for i=1,flows do
-                histogram[i]:print()
+                --histogram[i]:print()
                 histogram[i]:save("histogram"..tostring(i)..".csv")
         end
 end
