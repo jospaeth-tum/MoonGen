@@ -94,7 +94,7 @@ local function fillUdpPacket(buf, len, port, dst_mac)
 		ethDst = dst_mac,
 		ip4Src = SRC_IP,
 		ip4Dst = DST_IP,
-		udpSrc = SRC_PORT,
+		udpSrc = math.random(0,65000),
 		udpDst = port,
 		pktLength = len
 	}
