@@ -96,7 +96,7 @@ function master(args)
 
 	stats.startStatsTask { txDevices = { args.dev[1] }, rxDevices = { args.dev[2] } }
 
-	dev0tx:getTxQueue(0):setRate(sum(args.rate))
+	dev0tx:setRate(sum(args.rate))
 	local flows = tableOfFlows(args.flows, args.rate)
 
 	local sender0 = lm.startTask("generateTraffic", dev0tx, args, flows, args.burst, args.vlan, args.mac)
