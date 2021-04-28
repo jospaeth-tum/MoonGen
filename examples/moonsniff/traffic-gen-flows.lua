@@ -123,6 +123,7 @@ function generateTraffic(queue, args, flows, burst, vlan, mac)
 	end)
 	local bufs = mempool:bufArray()
 	local counter = 0
+	local numFlowEntries = table.getn(flows)
 	while lm.running() do
 		bufs:alloc(args.packetSize)
 
