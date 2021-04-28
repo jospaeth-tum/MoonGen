@@ -111,10 +111,7 @@ function master(args)
 end
 
 function generateTraffic(queue, args, flows, burst, vlan, mac)
-	log:info("Trying to enable rx timestamping of all packets, this isn't supported by most nics")
 	local pkt_id = 0
-	local baseIP = parseIPAddress(SRC_IP_BASE)
-	local numberOfPackets = args.numberOfPackets
 	local mempool = memory.createMemPool(function(buf)
 		buf:getUdpPacket():fill {
 			pktLength = args.packetSize,
@@ -141,8 +138,8 @@ function generateTraffic(queue, args, flows, burst, vlan, mac)
 			buf:setVlan(vlan[flows[counter+1]])
 			counter = incAndWrap(counter, numFlowEntries)
 		end
-		--bufs:offloadIPChecksums()
-		--bufs:offloadUdpChecksums()
+		bufs:offloadIPChecksums()
+		bufs:offloadUdpChecksums()
 		queue:send(bufs)
 	end
 end
