@@ -141,8 +141,8 @@ function generateTraffic(queue, args, flows, burst, vlan, mac)
 			buf:setVlan(vlan[flows[counter+1]])
 			counter = incAndWrap(counter, numFlowEntries)
 		end
-		bufs:offloadIPChecksums()
-		bufs:offloadUdpChecksums()
+		--bufs:offloadIPChecksums()
+		--bufs:offloadUdpChecksums()
 		queue:send(bufs)
 	end
 end
