@@ -12,10 +12,9 @@ local stats  = require "stats"
 local bit    = require "bit"
 local limiter = require "software-ratecontrol"
 
-local MS_TYPE = 0b01010101
+local MS_TYPE =  0b01010101
 local band = bit.band
 
-local DST_MAC		= "54:54:00:00:00:00" -- resolved via ARP on GW_IP or DST_IP, can be overriden with a string here
 local SRC_IP	  	= "10.0.0.10"
 local DST_IP		= "10.0.250.10"
 local SRC_PORT		= 1234
@@ -97,7 +96,7 @@ function master(args)
 
 	stats.startStatsTask { txDevices = { args.dev[1] }, rxDevices = { args.dev[2] } }
 
-	txDev:getTxQueue(0):setRate(sum(args.rate))
+	dev0tx:getTxQueue(0):setRate(sum(args.rate))
 	local flows = tableOfFlows(args.flows, args.rate)
 
 	local sender0 = lm.startTask("generateTraffic", dev0tx, args, flows, args.burst, args.vlan, args.mac)
