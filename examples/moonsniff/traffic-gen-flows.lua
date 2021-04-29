@@ -94,10 +94,10 @@ function master(args)
 	local dev0tx = args.dev[1]:getTxQueue(0)
 	local dev1rx = args.dev[2]:getRxQueue(0)
 
-	stats.startStatsTask { txDevices = { args.dev[1] }, rxDevices = { args.dev[2] } }
-
 	dev0tx:setRate(sum(args.rate))
 	local flows = tableOfFlows(args.flows, args.rate)
+
+	stats.startStatsTask { txDevices = { args.dev[1] }, rxDevices = { args.dev[2] } }
 
 	local sender0 = lm.startTask("generateTraffic", dev0tx, args, flows, args.burst, args.vlan, args.mac)
 
