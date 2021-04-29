@@ -84,10 +84,8 @@ end
 function generateTraffic(queue, args, rateLimiter)
 	doArp()
 	dstMAC = DST_MAC
-	log:info("Trying to enable rx timestamping of all packets, this isn't supported by most nics")
 	local pkt_id = 0
 	local dstPort = tonumber(DST_PORT_BASE)
-	local runtime = timer:new(args.time)
 	local mempool = memory.createMemPool(function(buf)
 		buf:getUdpPacket():fill {
 			pktLength = args.packetSize,
