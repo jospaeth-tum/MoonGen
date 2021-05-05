@@ -99,7 +99,7 @@ function master(args)
 
 	stats.startStatsTask { txDevices = { args.dev[1] }, rxDevices = { args.dev[2] } }
 
-	local sender0 = lm.startTask("generateTraffic", dev0tx, args, flows, args.burst, args.vlan, args.mac)
+	local sender0 = lm.startTask("generateTraffic", dev0tx, args, flows, args.burst, args.vlan, args.mac, args.flows)
 
 	if args.warmUp > 0 then
 		print('warm up active')
