@@ -134,7 +134,7 @@ function generateTraffic(queue, args, flows, burst, vlan, mac, flow_count)
 			local pkt = buf:getUdpPacket()
 			-- for setters to work correctly, the number is not allowed to exceed 16 bit
 			pkt.ip4:setID(band(pkt_id[flows[counter+1]], 0xFFFF))
-			pkt.payload.uint32[0] = pkt_id
+			pkt.payload.uint32[0] = pkt_id[flows[counter+1]]
 			pkt.payload.uint8[4] = MS_TYPE
 			pkt_id[flows[counter+1]] = pkt_id[flows[counter+1]] + 1
 			pkt.udp:setSrcPort( round(pkt_id[flows[counter+1]]/65536))
