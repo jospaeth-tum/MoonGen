@@ -110,8 +110,11 @@ function master(args)
 	lm.waitForTasks()
 end
 
-function generateTraffic(queue, args, flows, burst, vlan, mac)
-	local pkt_id = 0
+function generateTraffic(queue, args, flows, burst, vlan, mac, flow_count)
+	local pkt_id = {}--Needed for simpler handling
+	for i=1,flow_count do
+		table.insert(pkt_id,0)
+	end
 	local mempool = memory.createMemPool(function(buf)
 		buf:getUdpPacket():fill {
 			pktLength = args.packetSize,
@@ -130,14 +133,17 @@ function generateTraffic(queue, args, flows, burst, vlan, mac)
 		for i, buf in ipairs(bufs) do
 			local pkt = buf:getUdpPacket()
 			-- for setters to work correctly, the number is not allowed to exceed 16 bit
-			pkt.ip4:setID(band(pkt_id, 0xFFFF))
+			pkt.ip4:setID(band(pkt_id[flows[counter+1]], 0xFFFF))
 			pkt.payload.uint32[0] = pkt_id
 			pkt.payload.uint8[4] = MS_TYPE
-			pkt_id = pkt_id + 1
-			pkt.udp:setSrcPort( math.random( 1, 65563 ))
+			pkt_id[flows[counter+1]] = pkt_id[flows[counter+1]] + 1
+			pkt.udp:setSrcPort( round(pkt_id[flows[counter+1]]/65536))
 			pkt.udp:setDstPort(DST_PORT_BASE + flows[counter+1])
 			pkt.eth:setDst(convertMacAddress(mac[vlan[flows[counter+1]]]))
 			buf:setVlan(vlan[flows[counter+1]])
+			if pkt_id[flows[counter+1]] > 4294967296 then
+								pkt_id[flows[counter+1]] = 0
+			end
 			counter = incAndWrap(counter, numFlowEntries)
 		end
 		bufs:offloadIPChecksums()
