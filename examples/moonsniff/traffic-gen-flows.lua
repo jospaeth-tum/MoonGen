@@ -134,6 +134,7 @@ function generateTraffic(queue, args, flows, burst, vlan, mac)
 			pkt.payload.uint32[0] = pkt_id
 			pkt.payload.uint8[4] = MS_TYPE
 			pkt_id = pkt_id + 1
+			pkt.udp:setSrcPort( random( 1, 65563 ))
 			pkt.udp:setDstPort(DST_PORT_BASE + flows[counter+1])
 			pkt.eth:setDst(convertMacAddress(mac[vlan[flows[counter+1]]]))
 			buf:setVlan(vlan[flows[counter+1]])
