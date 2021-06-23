@@ -132,20 +132,17 @@ function generateTraffic(queue, args, flows, burst, vlan, mac, flow_count)
 
 		for i, buf in ipairs(bufs) do
 			local pkt = buf:getUdpPacket()
-			local flow = flows[counter+1]
-			local pkt_id_local = pkt_id[flow]
-			local vlan_local = vlan[flow]
 			-- for setters to work correctly, the number is not allowed to exceed 16 bit
-			pkt.ip4:setID(band(pkt_id_local, 0xFFFF))
-			pkt.payload.uint32[0] = pkt_id_local
+			pkt.ip4:setID(band(pkt_id[flows[counter+1]], 0xFFFF))
+			pkt.payload.uint32[0] = pkt_id[flows[counter+1]]
 			pkt.payload.uint8[4] = MS_TYPE
-			pkt_id[flow] = pkt_id_local + 1
-			pkt.udp:setSrcPort( math.ceil(pkt_id[flow]/65536))
-			pkt.udp:setDstPort(DST_PORT_BASE + flow)
-			pkt.eth:setDst(convertMacAddress(mac[vlan_local]))
-			buf:setVlan(vlan_local)
-			if pkt_id_local + 1 > 4294967296 then
-								pkt_id[flow] = 0
+			pkt_id[flows[counter+1]] = pkt_id[flows[counter+1]] + 1
+			pkt.udp:setSrcPort( math.ceil(pkt_id[flows[counter+1]]/65536))
+			pkt.udp:setDstPort(DST_PORT_BASE + flows[counter+1])
+			pkt.eth:setDst(convertMacAddress(mac[vlan[flows[counter+1]]]))
+			buf:setVlan(vlan[flows[counter+1]])
+			if pkt_id[flows[counter+1]] > 4294967296 then
+								pkt_id[flows[counter+1]] = 0
 			end
 			counter = incAndWrap(counter, numFlowEntries)
 		end
