@@ -86,7 +86,7 @@ function convertMacAddress(address)
 end
 
 function master(args)
-	if args.flows ~= (table.getn(args.rate) or table.getn(args.burst) or table.getn(args.vlan)) or table.getn(args.src_ip)) or table.getn(args.dst_ip)) then
+	if args.flows ~= (table.getn(args.rate) or table.getn(args.burst) or table.getn(args.vlan) or table.getn(args.src_ip)) or table.getn(args.dst_ip)) then
 		log:error("Rate and burst and src_ip and dst_ip are not matching the numbers of flows")
 		return -1 -- Error as we have no result here, we need one definition per flow
 	end
