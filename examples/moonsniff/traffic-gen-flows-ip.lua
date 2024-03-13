@@ -17,6 +17,8 @@ local band = bit.band
 
 local SRC_IP	  	= "10.0.0.10"
 local DST_IP		= "10.0.250.10"
+local SRC_IPV6	  	= "2001::1"
+local DST_IPV6		= "2001::5"
 local SRC_PORT		= 1234
 local DST_PORT_BASE	= 1000
 
@@ -33,6 +35,7 @@ function configure(parser)
 	parser:option("-b --burst", "Burst in bytes"):args("*"):default(10000):convert(tonumber)
 	parser:option("-w --warm-up", "Warm-up device by sending 1000 pkts and pausing n seconds before real test begins."):convert(tonumber):default(0):target('warmUp')
 	parser:option("-f --flows", "Number of flows (randomized source IP)."):default(1):convert(tonumber):target('flows')
+	parser:flag("-v6 --ipv6")
 
 	return parser:parse()
 end
@@ -101,8 +104,12 @@ function master(args)
 
 	stats.startStatsTask { txDevices = { args.dev[1] }, rxDevices = { args.dev[2] } }
 
-	local sender0 = lm.startTask("generateTraffic", dev0tx, args, flows, args.burst, args.vlan, args.mac, args.flows, args.src_ip, args.dst_ip)
-
+	if args.v6 then
+		local sender0 = lm.startTask("generateTrafficv6", dev0tx, args, flows, args.burst, args.vlan, args.mac, args.flows, args.src_ip, args.dst_ip)
+	else
+		local sender0 = lm.startTask("generateTrafficv4", dev0tx, args, flows, args.burst, args.vlan, args.mac, args.flows, args.src_ip, args.dst_ip)
+	end
+		
 	if args.warmUp > 0 then
 		print('warm up active')
 	end
@@ -112,7 +119,7 @@ function master(args)
 	lm.waitForTasks()
 end
 
-function generateTraffic(queue, args, flows, burst, vlan, mac, flow_count, src_ip, dst_ip)
+function generateTrafficv4(queue, args, flows, burst, vlan, mac, flow_count, src_ip, dst_ip)
 	local pkt_id = {}--Needed for simpler handling
 	for i=1,flow_count do
 		table.insert(pkt_id,0)
@@ -146,6 +153,49 @@ function generateTraffic(queue, args, flows, burst, vlan, mac, flow_count, src_i
 			pkt.eth:setDst(convertMacAddress(mac[vlan[flows[counter+1]]]))
 			buf:setVlan(vlan[flows[counter+1]])
 			if pkt_id[flows[counter+1]] > 4294967296 then
+								pkt_id[flows[counter+1]] = 0
+			end
+			counter = incAndWrap(counter, numFlowEntries)
+		end
+		bufs:offloadIPChecksums()
+		bufs:offloadUdpChecksums()
+		queue:send(bufs)
+	end
+end
+
+function generateTrafficv6(queue, args, flows, burst, vlan, mac, flow_count, src_ip, dst_ip)
+	local pkt_id = {}--Needed for simpler handling
+	for i=1,flow_count do
+		table.insert(pkt_id,0)
+	end
+	local mempool = memory.createMemPool(function(buf)
+		buf:getUdpPacket(false):fill {
+			pktLength = args.packetSize,
+			ethSrc = queue,
+			ip6Src = SRC_IPV6,
+			ip6Dst = DST_IPV6,
+			udpSrc = SRC_PORT,
+		}
+	end)
+	local bufs = mempool:bufArray()
+	local counter = 0
+	local numFlowEntries = table.getn(flows)
+	while lm.running() do
+		bufs:alloc(args.packetSize)
+
+		for i, buf in ipairs(bufs) do
+			local pkt = buf:getUdpPacket(false)
+			-- for setters to work correctly, the number is not allowed to exceed 16 bit
+			pkt.payload.uint32[0] = pkt_id[flows[counter+1]]
+			pkt.payload.uint8[4] = MS_TYPE
+			pkt.ip6:setDstString(dst_ip[flows[counter+1]])
+			pkt.ip6:setSrcString(src_ip[flows[counter+1]])
+			pkt_id[flows[counter+1]] = pkt_id[flows[counter+1]] + 1
+			pkt.udp:setSrcPort( math.ceil(pkt_id[flows[counter+1]]/65536))
+			pkt.udp:setDstPort(DST_PORT_BASE + flows[counter+1])
+			pkt.eth:setDst(convertMacAddress(mac[vlan[flows[counter+1]]]))
+			buf:setVlan(vlan[flows[counter+1]])
+			if pkt_id[flows[counter+1]] > 2147483645 then
 								pkt_id[flows[counter+1]] = 0
 			end
 			counter = incAndWrap(counter, numFlowEntries)
