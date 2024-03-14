@@ -104,10 +104,11 @@ function master(args)
 
 	stats.startStatsTask { txDevices = { args.dev[1] }, rxDevices = { args.dev[2] } }
 
+	local sender0 = nil
 	if args.v6 then
-		local sender0 = lm.startTask("generateTrafficv6", dev0tx, args, flows, args.burst, args.vlan, args.mac, args.flows, args.src_ip, args.dst_ip)
+		sender0 = lm.startTask("generateTrafficv6", dev0tx, args, flows, args.burst, args.vlan, args.mac, args.flows, args.src_ip, args.dst_ip)
 	else
-		local sender0 = lm.startTask("generateTrafficv4", dev0tx, args, flows, args.burst, args.vlan, args.mac, args.flows, args.src_ip, args.dst_ip)
+		sender0 = lm.startTask("generateTrafficv4", dev0tx, args, flows, args.burst, args.vlan, args.mac, args.flows, args.src_ip, args.dst_ip)
 	end
 		
 	if args.warmUp > 0 then
