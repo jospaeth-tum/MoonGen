@@ -35,7 +35,7 @@ function configure(parser)
 	parser:option("-b --burst", "Burst in bytes"):args("*"):default(10000):convert(tonumber)
 	parser:option("-w --warm-up", "Warm-up device by sending 1000 pkts and pausing n seconds before real test begins."):convert(tonumber):default(0):target('warmUp')
 	parser:option("-f --flows", "Number of flows (randomized source IP)."):default(1):convert(tonumber):target('flows')
-	parser:flag("-v6 --ipv6")
+	parser:option("-i --ip", "Version of IP to use either 4 or  6"):default(4):target("ip"):convert(tonumber)
 
 	return parser:parse()
 end
@@ -105,7 +105,7 @@ function master(args)
 	stats.startStatsTask { txDevices = { args.dev[1] }, rxDevices = { args.dev[2] } }
 
 	local sender0 = nil
-	if args.v6 then
+	if args.ip > 5 then
 		sender0 = lm.startTask("generateTrafficv6", dev0tx, args, flows, args.burst, args.vlan, args.mac, args.flows, args.src_ip, args.dst_ip)
 	else
 		sender0 = lm.startTask("generateTrafficv4", dev0tx, args, flows, args.burst, args.vlan, args.mac, args.flows, args.src_ip, args.dst_ip)
