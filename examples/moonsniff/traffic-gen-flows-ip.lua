@@ -201,8 +201,7 @@ function generateTrafficv6(queue, args, flows, burst, vlan, mac, flow_count, src
 			end
 			counter = incAndWrap(counter, numFlowEntries)
 		end
-		bufs:offloadIPChecksums(false)
-		bufs:offloadUdpChecksums(false)
+		bufs:offloadUdpChecksums(false, 44)
 		queue:send(bufs)
 	end
 end
