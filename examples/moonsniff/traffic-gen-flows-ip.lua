@@ -148,7 +148,6 @@ function generateTrafficv4(queue, args, flows, burst, vlan, mac, flow_count, src
 			pkt.ip4:setDstString(dst_ip[flows[counter+1]])
 			pkt.ip4:setSrcString(src_ip[flows[counter+1]])
 			pkt_id[flows[counter+1]] = pkt_id[flows[counter+1]] + 1
-			pkt.udp:setSrcPort( math.ceil(pkt_id[flows[counter+1]]/65536))
 			pkt.udp:setDstPort(DST_PORT_BASE + flows[counter+1])
 			pkt.eth:setDst(convertMacAddress(mac[vlan[flows[counter+1]]]))
 			buf:setVlan(vlan[flows[counter+1]])
@@ -191,11 +190,10 @@ function generateTrafficv6(queue, args, flows, burst, vlan, mac, flow_count, src
 			pkt.ip6:setDstString(dst_ip[flows[counter+1]])
 			pkt.ip6:setSrcString(src_ip[flows[counter+1]])
 			pkt_id[flows[counter+1]] = pkt_id[flows[counter+1]] + 1
-			pkt.udp:setSrcPort( math.ceil(pkt_id[flows[counter+1]]/65536))
 			pkt.udp:setDstPort(DST_PORT_BASE + flows[counter+1])
 			pkt.eth:setDst(convertMacAddress(mac[vlan[flows[counter+1]]]))
 			buf:setVlan(vlan[flows[counter+1]])
-			if pkt_id[flows[counter+1]] > 2147483645 then
+			if pkt_id[flows[counter+1]] > 4294967296 then
 								pkt_id[flows[counter+1]] = 0
 			end
 			counter = incAndWrap(counter, numFlowEntries)
