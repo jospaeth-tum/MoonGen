@@ -143,7 +143,6 @@ function generateTrafficv4(queue, args, flows, burst, vlan, mac, flow_count, src
 		for i, buf in ipairs(bufs) do
 			local pkt = buf:getUdpPacket()
 			-- for setters to work correctly, the number is not allowed to exceed 16 bit
-			pkt.ip4:setID(band(pkt_id[flows[counter+1]], 0xFFFF))
 			pkt.payload.uint32[0] = pkt_id[flows[counter+1]]
 			pkt.payload.uint8[4] = MS_TYPE
 			pkt.ip4:setDstString(dst_ip[flows[counter+1]])
