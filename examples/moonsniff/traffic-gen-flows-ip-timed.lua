@@ -162,8 +162,8 @@ function generateTrafficv4(queue, args, flows, burst, vlan, mac, flow_count, src
 
 			args.flows = args.flows + 1
 			args.rate[#args.rate + 1] = 800.0
-			args.dst_ip[#args.dst_ip + 1] = parseIP4Address('10.5.2.14')
-			args.src_ip[#args.src_ip + 1] = parseIP4Address('10.3.2.14')
+			args.dst_ip[#args.dst_ip + 1] = parseIP4Address('10.5.2.100')
+			args.src_ip[#args.src_ip + 1] = parseIP4Address('10.3.2.100')
 			args.vlan[#args.vlan + 1] = 1
             queue:setRate(sum(args.rate))
 	        flows = tableOfFlows(args.flows, args.rate)
@@ -245,8 +245,8 @@ function generateTrafficv6(queue, args, flows, burst, vlan, mac, flow_count, src
 
 			args.flows = args.flows + 1
 			args.rate[#args.rate + 1] = 800.0
-			args.dst_ip[#args.dst_ip + 1] = parseIP6Address('2001:db8:5::2:14')
-			args.src_ip[#args.src_ip + 1] = parseIP6Address('2001:db8:3::2:14')
+			args.dst_ip[#args.dst_ip + 1] = parseIP6Address('2001:db8:5::2:100')
+			args.src_ip[#args.src_ip + 1] = parseIP6Address('2001:db8:3::2:100')
 			args.vlan[#args.vlan + 1] = 1
             queue:setRate(sum(args.rate))
 	        flows = tableOfFlows(args.flows, args.rate)
