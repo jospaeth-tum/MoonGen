@@ -148,21 +148,46 @@ function generateTrafficv4(queue, args, flows, burst, vlan, mac, flow_count, src
 	local bufs = mempool:bufArray()
 	local counter = 0
 	local numFlowEntries = table.getn(flows)
-	local timer = timer:new(15)
+	local flowTimer1 = timer:new(30)
+	local flowAdded = false
+	local flowTimer2 = timer:new(90)
+	local flowRemoved = false
 	while lm.running() do
-        if timer:expired() then
+        if flowTimer1:expired() and not flowAdded then
+			pkt_id = {}
+			flow_count = flow_count + 1
 			for i=1,flow_count do
 				table.insert(pkt_id,0)
 			end
 
 			args.flows = args.flows + 1
-			args.rate[#args.rate + 1] = 10.0
+			args.rate[#args.rate + 1] = 800.0
 			args.dst_ip[#args.dst_ip + 1] = parseIP4Address('10.5.2.14')
 			args.src_ip[#args.src_ip + 1] = parseIP4Address('10.3.2.14')
 			args.vlan[#args.vlan + 1] = 1
             queue:setRate(sum(args.rate))
 	        flows = tableOfFlows(args.flows, args.rate)
 			numFlowEntries = table.getn(flows)
+			counter = incAndWrap(counter, numFlowEntries)
+			flowAdded = true
+        end
+        if flowTimer2:expired() and not flowRemoved then
+			pkt_id = {}
+			flow_count = flow_count - 1
+			for i=1,flow_count do
+				table.insert(pkt_id,0)
+			end
+
+			args.flows = args.flows - 1
+			args.rate[#args.rate] = nil
+			args.dst_ip[#args.dst_ip] = nil
+			args.src_ip[#args.src_ip] = nil
+			args.vlan[#args.vlan] = nil
+            queue:setRate(sum(args.rate))
+	        flows = tableOfFlows(args.flows, args.rate)
+			numFlowEntries = table.getn(flows)
+			counter = incAndWrap(counter, numFlowEntries)
+			flowRemoved = true
         end
 	
 		bufs:alloc(args.packetSize)
@@ -206,21 +231,46 @@ function generateTrafficv6(queue, args, flows, burst, vlan, mac, flow_count, src
 	local bufs = mempool:bufArray()
 	local counter = 0
 	local numFlowEntries = table.getn(flows)
-	local timer = timer:new(15)
+	local flowTimer1 = timer:new(30)
+	local flowAdded = false
+	local flowTimer2 = timer:new(90)
+	local flowRemoved = false
 	while lm.running() do
-        if timer:expired() then
+        if flowTimer1:expired() and not flowAdded then
+			pkt_id = {}
+			flow_count = flow_count + 1
 			for i=1,flow_count do
 				table.insert(pkt_id,0)
 			end
 
 			args.flows = args.flows + 1
-			args.rate[#args.rate + 1] = 10.0
+			args.rate[#args.rate + 1] = 800.0
 			args.dst_ip[#args.dst_ip + 1] = parseIP6Address('2001:db8:5::2:14')
 			args.src_ip[#args.src_ip + 1] = parseIP6Address('2001:db8:3::2:14')
 			args.vlan[#args.vlan + 1] = 1
             queue:setRate(sum(args.rate))
 	        flows = tableOfFlows(args.flows, args.rate)
 			numFlowEntries = table.getn(flows)
+			counter = incAndWrap(counter, numFlowEntries)
+			flowAdded = true
+        end
+        if flowTimer2:expired() and not flowRemoved then
+			pkt_id = {}
+			flow_count = flow_count - 1
+			for i=1,flow_count do
+				table.insert(pkt_id,0)
+			end
+
+			args.flows = args.flows - 1
+			args.rate[#args.rate] = nil
+			args.dst_ip[#args.dst_ip] = nil
+			args.src_ip[#args.src_ip] = nil
+			args.vlan[#args.vlan] = nil
+            queue:setRate(sum(args.rate))
+	        flows = tableOfFlows(args.flows, args.rate)
+			numFlowEntries = table.getn(flows)
+			counter = incAndWrap(counter, numFlowEntries)
+			flowRemoved = true
         end
 
 		bufs:alloc(args.packetSize)
