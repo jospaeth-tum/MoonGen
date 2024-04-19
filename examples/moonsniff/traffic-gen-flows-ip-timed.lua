@@ -93,6 +93,17 @@ function master(args)
 		log:error("Rate and burst and src_ip and dst_ip are not matching the numbers of flows")
 		return -1 -- Error as we have no result here, we need one definition per flow
 	end
+	-- pre-parse IP and MAC addresses
+	for i,s in ipairs(args.src_ip) do
+		args.src_ip[i] = parseIPAddress(s)
+	end
+	for i,s in ipairs(args.dst_ip) do
+		args.dst_ip[i] = parseIPAddress(s)
+	end
+	for i,s in ipairs(args.mac) do
+		args.mac[i] = convertMacAddress(s)
+	end
+
 	args.dev[1] = device.config { port = args.dev[1], txQueues = 1 }
 	args.dev[2] = device.config { port = args.dev[2], rxQueues = 1 }
 	device.waitForLinks()
@@ -146,7 +157,10 @@ function generateTrafficv4(queue, args, flows, burst, vlan, mac, flow_count, src
 
 			args.flows = args.flows + 1
 			args.rate[#args.rate + 1] = 10.0
-            queue.dev:setRate(sum(args.rate))
+			args.dst_ip[#args.dst_ip + 1] = parseIP4Address('10.5.2.14')
+			args.src_ip[#args.src_ip + 1] = parseIP4Address('10.3.2.14')
+			args.vlan[#args.vlan + 1] = 1
+            queue:setRate(sum(args.rate))
 	        flows = tableOfFlows(args.flows, args.rate)
 			numFlowEntries = table.getn(flows)
         end
@@ -158,19 +172,18 @@ function generateTrafficv4(queue, args, flows, burst, vlan, mac, flow_count, src
 			-- for setters to work correctly, the number is not allowed to exceed 16 bit
 			pkt.payload.uint32[0] = pkt_id[flows[counter+1]]
 			pkt.payload.uint8[4] = MS_TYPE
-			pkt.ip4:setDstString(dst_ip[flows[counter+1]])
-			pkt.ip4:setSrcString(src_ip[flows[counter+1]])
+			pkt.ip4:setDst(dst_ip[flows[counter+1]])
+			pkt.ip4:setSrc(src_ip[flows[counter+1]])
 			pkt_id[flows[counter+1]] = pkt_id[flows[counter+1]] + 1
 			pkt.udp:setDstPort(DST_PORT_BASE + flows[counter+1])
 			pkt.udp:setSrcPort(SRC_PORT + flows[counter+1])
-			pkt.eth:setDst(convertMacAddress(mac[vlan[flows[counter+1]]]))
+			pkt.eth:setDst(mac[vlan[flows[counter+1]]])
 			buf:setVlan(vlan[flows[counter+1]])
 			if pkt_id[flows[counter+1]] > 4294967296 then
 								pkt_id[flows[counter+1]] = 0
 			end
 			counter = incAndWrap(counter, numFlowEntries)
 		end
-		bufs:offloadIPChecksums()
 		bufs:offloadUdpChecksums()
 		queue:send(bufs)
 	end
@@ -202,7 +215,10 @@ function generateTrafficv6(queue, args, flows, burst, vlan, mac, flow_count, src
 
 			args.flows = args.flows + 1
 			args.rate[#args.rate + 1] = 10.0
-            queue.dev:setRate(sum(args.rate))
+			args.dst_ip[#args.dst_ip + 1] = parseIP6Address('2001:db8:5::2:14')
+			args.src_ip[#args.src_ip + 1] = parseIP6Address('2001:db8:3::2:14')
+			args.vlan[#args.vlan + 1] = 1
+            queue:setRate(sum(args.rate))
 	        flows = tableOfFlows(args.flows, args.rate)
 			numFlowEntries = table.getn(flows)
         end
@@ -214,12 +230,12 @@ function generateTrafficv6(queue, args, flows, burst, vlan, mac, flow_count, src
 			-- for setters to work correctly, the number is not allowed to exceed 16 bit
 			pkt.payload.uint32[0] = pkt_id[flows[counter+1]]
 			pkt.payload.uint8[4] = MS_TYPE
-			pkt.ip6:setDstString(dst_ip[flows[counter+1]])
-			pkt.ip6:setSrcString(src_ip[flows[counter+1]])
+			pkt.ip6:setDst(dst_ip[flows[counter+1]])
+			pkt.ip6:setSrc(src_ip[flows[counter+1]])
 			pkt_id[flows[counter+1]] = pkt_id[flows[counter+1]] + 1
 			pkt.udp:setDstPort(DST_PORT_BASE + flows[counter+1])
 			pkt.udp:setSrcPort(SRC_PORT + flows[counter+1])
-			pkt.eth:setDst(convertMacAddress(mac[vlan[flows[counter+1]]]))
+			pkt.eth:setDst(mac[vlan[flows[counter+1]]])
 			buf:setVlan(vlan[flows[counter+1]])
 			if pkt_id[flows[counter+1]] > 4294967296 then
 								pkt_id[flows[counter+1]] = 0
