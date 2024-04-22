@@ -33,7 +33,7 @@ function configure(parser)
 	parser:option("-p --packets", "Send only the number of packets specified"):default(100000):convert(tonumber):target("numberOfPackets")
 	parser:option("-x --size", "Packet size in bytes."):convert(tonumber):default(100):target('packetSize')
 	parser:option("-b --burst", "Burst in bytes"):args("*"):default(10000):convert(tonumber)
-	parser:option("-w --warm-up", "Warm-up device by sending 1000 pkts and pausing n seconds before real test begins."):convert(tonumber):default(0):target('warmUp')
+	parser:option("-w --warm-up", "Warm-up device by sending n seconds before real test begins."):convert(tonumber):default(0):target('warmUp')
 	parser:option("-f --flows", "Number of flows (randomized source IP)."):default(1):convert(tonumber):target('flows')
 	parser:option("-i --ip", "Version of IP to use either 4 or  6"):default(4):target("ip"):convert(tonumber)
 
@@ -123,7 +123,7 @@ function master(args)
 	end
 		
 	if args.warmUp > 0 then
-		print('warm up active')
+		print(string.format('warm up active: %u s', args.warmUp))
 	end
 
 	sender0:wait()
@@ -148,9 +148,9 @@ function generateTrafficv4(queue, args, flows, burst, vlan, mac, flow_count, src
 	local bufs = mempool:bufArray()
 	local counter = 0
 	local numFlowEntries = table.getn(flows)
-	local flowTimer1 = timer:new(30)
+	local flowTimer1 = timer:new(30 + args.warmUp)
 	local flowAdded = false
-	local flowTimer2 = timer:new(90)
+	local flowTimer2 = timer:new(90 + args.warmUp)
 	local flowRemoved = false
 	while lm.running() do
         if flowTimer1:expired() and not flowAdded then
@@ -231,9 +231,9 @@ function generateTrafficv6(queue, args, flows, burst, vlan, mac, flow_count, src
 	local bufs = mempool:bufArray()
 	local counter = 0
 	local numFlowEntries = table.getn(flows)
-	local flowTimer1 = timer:new(30)
+	local flowTimer1 = timer:new(30 + args.warmUp)
 	local flowAdded = false
-	local flowTimer2 = timer:new(90)
+	local flowTimer2 = timer:new(90 + args.warmUp)
 	local flowRemoved = false
 	while lm.running() do
         if flowTimer1:expired() and not flowAdded then
