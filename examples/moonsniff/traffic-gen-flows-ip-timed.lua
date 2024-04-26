@@ -26,6 +26,9 @@ function configure(parser)
 	parser:description("Generate traffic which can be used by moonsniff to establish latencies induced by a device under test.")
 	parser:argument("dev", "Devices to use."):args(2):convert(tonumber)
 	parser:option("-r --rate", "Transmit rate in Mbit/s."):args("*"):default(10000):convert(tonumber)
+	parser:option("--timed-rate", "Transmit rate of the timed flow in Mbit/s."):default(1500):convert(tonumber):target('timedFlowRate')
+	parser:option("--timed-begin", "Start time of the timed flow in seconds after warm-up."):convert(tonumber):default(10):target('timedFlowStart')
+	parser:option("--timed-end", "Stop time of the timed flow in seconds after warm-up."):convert(tonumber):default(20):target('timedFlowStop')
 	parser:option("-s --src-ip", "The src IP per flow"):args("*"):default("-1")
 	parser:option("-d --dst-ip", "The dst IP per flow"):args("*"):default("-1")
 	parser:option("-v --vlan", "VLANs per Flow"):args("*"):default(-1):convert(tonumber)
@@ -148,9 +151,9 @@ function generateTrafficv4(queue, args, flows, burst, vlan, mac, flow_count, src
 	local bufs = mempool:bufArray()
 	local counter = 0
 	local numFlowEntries = table.getn(flows)
-	local flowTimer1 = timer:new(30 + args.warmUp)
+	local flowTimer1 = timer:new(args.warmUp + args.timedFlowStart)
 	local flowAdded = false
-	local flowTimer2 = timer:new(90 + args.warmUp)
+	local flowTimer2 = timer:new(args.warmUp + args.timedFlowStop)
 	local flowRemoved = false
 	while lm.running() do
         if flowTimer1:expired() and not flowAdded then
@@ -161,7 +164,7 @@ function generateTrafficv4(queue, args, flows, burst, vlan, mac, flow_count, src
 			end
 
 			args.flows = args.flows + 1
-			args.rate[#args.rate + 1] = 800.0
+			args.rate[#args.rate + 1] = args.timedFlowRate
 			args.dst_ip[#args.dst_ip + 1] = parseIP4Address('10.5.2.100')
 			args.src_ip[#args.src_ip + 1] = parseIP4Address('10.3.2.100')
 			args.vlan[#args.vlan + 1] = 1
@@ -231,9 +234,9 @@ function generateTrafficv6(queue, args, flows, burst, vlan, mac, flow_count, src
 	local bufs = mempool:bufArray()
 	local counter = 0
 	local numFlowEntries = table.getn(flows)
-	local flowTimer1 = timer:new(30 + args.warmUp)
+	local flowTimer1 = timer:new(args.warmUp + args.timedFlowStart)
 	local flowAdded = false
-	local flowTimer2 = timer:new(90 + args.warmUp)
+	local flowTimer2 = timer:new(args.warmUp + args.timedFlowStop)
 	local flowRemoved = false
 	while lm.running() do
         if flowTimer1:expired() and not flowAdded then
@@ -244,7 +247,7 @@ function generateTrafficv6(queue, args, flows, burst, vlan, mac, flow_count, src
 			end
 
 			args.flows = args.flows + 1
-			args.rate[#args.rate + 1] = 800.0
+			args.rate[#args.rate + 1] = args.timedFlowRate
 			args.dst_ip[#args.dst_ip + 1] = parseIP6Address('2001:db8:5::2:100')
 			args.src_ip[#args.src_ip + 1] = parseIP6Address('2001:db8:3::2:100')
 			args.vlan[#args.vlan + 1] = 1
