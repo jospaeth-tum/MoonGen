@@ -29,6 +29,8 @@ function configure(parser)
 	parser:option("--timed-rate", "Transmit rate of the timed flow in Mbit/s."):default(1500):convert(tonumber):target('timedFlowRate')
 	parser:option("--timed-start", "Start time of the timed flow in seconds after warm-up."):convert(tonumber):default(10):target('timedFlowStart')
 	parser:option("--timed-stop", "Stop time of the timed flow in seconds after warm-up."):convert(tonumber):default(20):target('timedFlowStop')
+	parser:option("--timed-src-ip", "The src IP of the timed flow"):default("10.3.2.100"):target('timedSrcIp')
+	parser:option("--timed-dst-ip", "The dst IP of the timed flow"):default("10.5.2.100"):target('timedDstIp')
 	parser:option("-s --src-ip", "The src IP per flow"):args("*"):default("-1")
 	parser:option("-d --dst-ip", "The dst IP per flow"):args("*"):default("-1")
 	parser:option("-v --vlan", "VLANs per Flow"):args("*"):default(-1):convert(tonumber)
@@ -106,6 +108,8 @@ function master(args)
 	for i,s in ipairs(args.mac) do
 		args.mac[i] = convertMacAddress(s)
 	end
+	args.timedSrcIp = parseIPAddress(args.timedSrcIp)
+	args.timedDstIp = parseIPAddress(args.timedDstIp)
 
 	args.dev[1] = device.config { port = args.dev[1], txQueues = 1 }
 	args.dev[2] = device.config { port = args.dev[2], rxQueues = 1 }
@@ -165,8 +169,8 @@ function generateTrafficv4(queue, args, flows, burst, vlan, mac, flow_count, src
 
 			args.flows = args.flows + 1
 			args.rate[#args.rate + 1] = args.timedFlowRate
-			args.dst_ip[#args.dst_ip + 1] = parseIP4Address('10.5.2.100')
-			args.src_ip[#args.src_ip + 1] = parseIP4Address('10.3.2.100')
+			args.dst_ip[#args.dst_ip + 1] = args.timedDstIp
+			args.src_ip[#args.src_ip + 1] = args.timedSrcIp
 			args.vlan[#args.vlan + 1] = 1
             queue:setRate(sum(args.rate))
 	        flows = tableOfFlows(args.flows, args.rate)
@@ -248,8 +252,8 @@ function generateTrafficv6(queue, args, flows, burst, vlan, mac, flow_count, src
 
 			args.flows = args.flows + 1
 			args.rate[#args.rate + 1] = args.timedFlowRate
-			args.dst_ip[#args.dst_ip + 1] = parseIP6Address('2001:db8:5::2:100')
-			args.src_ip[#args.src_ip + 1] = parseIP6Address('2001:db8:3::2:100')
+			args.dst_ip[#args.dst_ip + 1] = args.timedDstIp
+			args.src_ip[#args.src_ip + 1] = args.timedSrcIp
 			args.vlan[#args.vlan + 1] = 1
             queue:setRate(sum(args.rate))
 	        flows = tableOfFlows(args.flows, args.rate)
